@@ -93,3 +93,16 @@ def test_choose_none_means_no_match():
     recognizer, _ = make([text_response({"code": "none"})])
     guess = DishGuess(name="mystery", unit="bowl", quantity=1, confidence="low")
     assert recognizer.choose(guess, [Candidate(code="ASC165", name="Kidney bean curry")]) is None
+
+
+def test_generic_api_error_raises_recognizer_error_without_its_text():
+    class OddAPIError(anthropic.APIError):
+        pass
+
+    request = httpx.Request("POST", "https://api.anthropic.com/v1/messages")
+    error = OddAPIError("secret detail sk-ant-xyz", request, body=None)
+    recognizer, _ = make([error])
+    with pytest.raises(RecognizerError) as info:
+        recognizer.recognize(None, None, "dal")
+    assert "secret" not in str(info.value)
+    assert "sk-ant" not in str(info.value)

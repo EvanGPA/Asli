@@ -128,6 +128,8 @@ class ClaudeRecognizer:
             raise RecognizerError(f"AI service returned an error ({exc.status_code})") from exc
         except anthropic.APIConnectionError as exc:
             raise RecognizerError("Could not reach the AI service") from exc
+        except anthropic.APIError as exc:
+            raise RecognizerError("The AI service failed to answer") from exc
 
         if response.stop_reason == "refusal":
             raise RecognizerError("The AI service declined this request")
