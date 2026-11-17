@@ -1,7 +1,9 @@
 import pytest
 
 from asli.food_db import FoodDB
-from asli.importer import build_db, canonical_unit, name_variants
+import openpyxl
+
+from asli.importer import MAX_PIECE_GRAMS, build_db, canonical_unit, name_variants
 from asli.models import PortionUnit
 
 
@@ -33,6 +35,31 @@ def test_missing_serving_information_gives_none(food_db):
         ("tablespoon", PortionUnit.TABLESPOON),
         ("chapati", PortionUnit.PIECE),
         ("idli", PortionUnit.PIECE),
+        ("Piece", PortionUnit.PIECE),
+        ("dosa", PortionUnit.PIECE),
+        ("samosa", PortionUnit.PIECE),
+        ("triangle", PortionUnit.PIECE),
+        ("kaathi roll", PortionUnit.PIECE),
+        ("pesarattu", PortionUnit.PIECE),
+        ("juice glass", PortionUnit.GLASS),
+        ("sundae glass", PortionUnit.GLASS),
+        ("tall stemmed glass", PortionUnit.GLASS),
+        ("ice cream cup", PortionUnit.CUP),
+        ("ice-cream cup", PortionUnit.CUP),
+        ("souffle cup", PortionUnit.CUP),
+        ("casserole dish", PortionUnit.PLATE),
+        ("souffle dish", PortionUnit.PLATE),
+        ("small casserole dish", PortionUnit.PLATE),
+        ("jar", PortionUnit.SERVING),
+        ("glass jar", PortionUnit.SERVING),
+        ("box", PortionUnit.SERVING),
+        ("ml", PortionUnit.SERVING),
+        ("gm", PortionUnit.SERVING),
+        ("half-pints", PortionUnit.SERVING),
+        ("chicken", PortionUnit.SERVING),
+        ("cake", PortionUnit.SERVING),
+        ("pie", PortionUnit.SERVING),
+        ("something unheard of", PortionUnit.SERVING),
         (None, PortionUnit.SERVING),
         ("  ", PortionUnit.SERVING),
     ],
@@ -74,6 +101,51 @@ def test_unknown_alias_code_rejected(tmp_path, indb_xlsx):
     aliases.write_text("alias,food_code\nchole,NOPE\n", encoding="utf-8")
     with pytest.raises(ValueError, match="NOPE"):
         build_db(indb_xlsx, aliases, tmp_path / "x.sqlite")
+
+
+def _write_indb(path, rows):
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.append([
+        "food_code", "food_name", "servings_unit", "energy_kcal", "protein_g", "carb_g",
+        "fat_g", "fibre_g", "unit_serving_energy_kcal", "unit_serving_protein_g",
+    ])
+    for row in rows:
+        ws.append(row)
+    wb.save(path)
+    return path
+
+
+def test_heavy_piece_is_stored_as_serving(tmp_path):
+    assert MAX_PIECE_GRAMS == 250
+    xlsx = _write_indb(tmp_path / "INDB.xlsx", [
+        # 100 kcal/100 g: 250 kcal per piece -> 250 g (at the cap, stays a piece)
+        ["P250", "Big cutlet", "cutlet", 100.0, 5.0, 10.0, 5.0, 1.0, 250.0, None],
+        # 1441 kcal per piece -> 1,441 g (whole recipe): stored as a serving
+        ["P1441", "Tandoori thing", "piece", 100.0, 5.0, 10.0, 5.0, 1.0, 1441.0, None],
+        # no serving weight: a countable unit stays a piece
+        ["PNONE", "Mystery vada", "vada", 100.0, 5.0, 10.0, 5.0, 1.0, None, None],
+    ])
+    out = tmp_path / "food.sqlite"
+    build_db(xlsx, None, out)
+    db = FoodDB(out)
+    assert db.get("P250").serving_unit is PortionUnit.PIECE
+    assert db.get("P1441").serving_unit is PortionUnit.SERVING
+    assert db.get("P1441").serving_grams == pytest.approx(1441.0)
+    assert db.get("PNONE").serving_unit is PortionUnit.PIECE
+
+
+def test_failed_build_keeps_existing_database(tmp_path, indb_xlsx):
+    out = tmp_path / "food.sqlite"
+    build_db(indb_xlsx, None, out)
+    before = out.read_bytes()
+    bad = tmp_path / "bad.csv"
+    bad.write_text("alias,food_code\nchole,NOPE\n", encoding="utf-8")
+    with pytest.raises(ValueError, match="NOPE"):
+        build_db(indb_xlsx, bad, out)
+    assert out.read_bytes() == before
+    assert FoodDB(out).get("ASC096").name == "Chapati/Roti"
+    assert sorted(p.name for p in tmp_path.iterdir()) == ["INDB.xlsx", "bad.csv", "food.sqlite"]
 
 
 def test_missing_database_file_raises(tmp_path):
