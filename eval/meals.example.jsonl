@@ -1,0 +1,2 @@
+{"id": "lunch-001", "image": "photos/lunch-001.jpg", "text": null, "dishes": [{"code": "ASC096", "grams": 72}, {"code": "ASC165", "grams": 180}]}
+{"id": "dinner-001", "image": null, "text": "3 idli and a bowl of sambar", "dishes": [{"code": "ASC144", "grams": 75}, {"code": "ASC167", "grams": 160}]}
