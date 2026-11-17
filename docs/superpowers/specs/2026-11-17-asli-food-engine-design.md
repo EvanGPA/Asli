@@ -51,12 +51,16 @@ Each component has one job and a narrow interface, so it can be tested and repla
 - If the final match is still weak, return the top three candidates for user confirmation.
 
 ### 4.4 Portion converter
-- Converts household units to grams. v1 units: roti/chapati, katori (bowl), plate, cup, glass, piece, tablespoon, serving.
-- Gram values come from INDB's per-serving sizes where available, otherwise from a small table measured and reviewed by the team, with the source recorded per row.
+- Converts household units to grams. v1 units: serving, bowl (katori), plate, piece (roti, idli, dosa and other countable items), cup, glass, tablespoon, teaspoon.
+- INDB serving sizes are inconsistent for containers (checked 2026-11-17: a "bowl" of poha is 55 g, a "bowl" of paneer kofta curry is 701 g, because some servings are a whole recipe), but per-piece weights for countable foods are reliable (chapati 36 g, idli 25 g). So the rule is:
+  1. bowl, plate, cup, glass, tablespoon, teaspoon: grams from a household-units table (`data/household_units.csv`) with the source recorded per row. Values not yet measured by the team are marked provisional.
+  2. piece, for a dish whose INDB serving unit is countable: INDB per-piece weight.
+  3. serving: INDB serving weight.
+  4. Anything else (for example "piece" of a curry): INDB serving weight if it exists, otherwise 100 g, and confidence is lowered one step.
 
 ### 4.5 Calculator
 - grams × (nutrient per 100 g) / 100 for each dish, summed per meal.
-- Each value carries a low-to-high range, not a single falsely precise number. v1 rule: each dish has a confidence band (high, medium, low) taken from the recognizer and lowered one step if the match needed confirmation. The gram estimate is widened by ±15% (high), ±30% (medium) or ±50% (low), and nutrients are computed at both ends. These starting percentages are tuned against the evaluation set (section 7).
+- Each value carries a low-to-high range, not a single falsely precise number. v1 rule: each dish has a confidence band (high, medium, low) taken from the recognizer, lowered one step if the AI had to choose the databank entry (4.3 step 2), and one more step if the portion used the fallback rule (4.4 rule 4). The gram estimate is widened by ±15% (high), ±30% (medium) or ±50% (low), and nutrients are computed at both ends. These starting percentages are tuned against the evaluation set (section 7).
 - Unmatched dishes are excluded from totals and listed separately.
 
 ### 4.6 API
@@ -101,10 +105,11 @@ INDB recipes include standard cooking fat, so totals use recipe defaults. This i
 - A small live test suite calls the real AI service and runs only on demand.
 - API tests cover each status in 5.1.
 
-## 9. Decisions to make during planning
+## 9. Decisions made during planning
 
-- Which Claude model to use by default, chosen after checking current pricing and vision quality. The model is configurable.
-- The match-score threshold in 4.3, set using the evaluation set.
+- Default model: `claude-opus-5-5` ($4 / $20 per million input / output tokens, checked 2026-11-17), configurable with `ASLI_MODEL`. Requests use Anthropic's server-side refusal fallback (`fallbacks: "default"`) so a rare safety decline is retried on another model. Whether a cheaper model holds accuracy is decided with the evaluation set (section 7), not assumed.
+- Match thresholds in 4.3: accept automatically at a fuzzy score of 90 or more; after the AI chooses, ask the user to confirm when the chosen entry scored below 60. Both are configurable (`ASLI_AUTO_ACCEPT_SCORE`, `ASLI_CONFIRM_SCORE`) and tuned with the evaluation set.
+- The raw INDB files and the built database are not committed to git while the licence question (section 10) is open; a download script fetches them.
 
 ## 10. Requirement before commercial launch
 
