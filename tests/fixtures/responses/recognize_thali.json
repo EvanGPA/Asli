@@ -1,0 +1,5 @@
+{"status": "ok", "dishes": [
+  {"name": "chapati", "alternative_names": ["roti"], "unit": "piece", "quantity": 2, "confidence": "high"},
+  {"name": "rajma", "alternative_names": ["kidney bean curry"], "unit": "bowl", "quantity": 1, "confidence": "medium"},
+  {"name": "pickle", "alternative_names": [], "unit": "teaspoon", "quantity": 0, "confidence": "low"}
+]}
