@@ -1,0 +1,7 @@
+unit,grams,source
+bowl,150,PROVISIONAL: replace with team measurement of a standard katori of cooked food
+plate,300,INDB serving size for boiled rice (ASC113) is 1 plate = 300 g; PROVISIONAL for other dishes
+cup,240,INDB Units.xlsx: 1 cup = 240 g
+glass,200,INDB Units.xlsx: 1 glass of water = 200 ml; PROVISIONAL density 1 g/ml
+tablespoon,15,Standard measure 1 tbsp = 15 ml; PROVISIONAL density 1 g/ml
+teaspoon,5,Standard measure 1 tsp = 5 ml; PROVISIONAL density 1 g/ml
